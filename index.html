@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Lightweight Charts Example</title>
+  <script src="https://unpkg.com/lightweight-charts@3.0.0/dist/lightweight-charts.standalone.production.js"></script>
+</head>
+<body>
+  <div id="chart-container"></div>
+  <script>
+    // Create a new chart
+    const chart = LightweightCharts.createChart(document.getElementById('chart-container'), {
+      width: 800,
+      height: 500,
+    });
+
+    // Add a Heikin Ashi series to the chart
+    const haSeries = chart.addCandlestickSeries({
+      priceScaleId: 'price',
+      type: 'heikinashi',
+    });
+  </script>
+  <script src="./webclient.js"></script>
+</body>
+</html>

@@ -9,16 +9,16 @@ websocket.onopen = () => {
 
 websocket.onmessage = event => {
     // console.log(`Received message: ${event.data}`);
-    console.log(`Received message ohlcv: ${event.data[ohlcv}`);
+    console.log(`Received message ohlcv: ${event.data['ohlcv']}`);
     // // Format the data for use with the chart
-    const formattedData = data.map(d => ({
-        time: d.timestamp,
-        open: d.open,
-        high: d.high,
-        low: d.low,
-        close: d.close,
-    }));
-    console.log(`Received message formattedData: ${formattedData}`);
+    // const formattedData = data.map(d => ({
+    //     time: d.timestamp,
+    //     open: d.open,
+    //     high: d.high,
+    //     low: d.low,
+    //     close: d.close,
+    // }));
+    // console.log(`Received message formattedData: ${formattedData}`);
 
     // // Add the OHLC data to the Heikin Ashi series
     // haSeries.setData(formattedData);

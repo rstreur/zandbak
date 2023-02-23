@@ -10,8 +10,8 @@ def initExchange():
         if exchange == None:
             exchange = ccxt.phemex({
                 'enableRateLimit': True,  # https://github.com/ccxt/ccxt/wiki/Manual#rate-limit
-                'apiKey': config.API_KEY_HOTSPOT,  # testnet keys if using the testnet sandbox
-                'secret': config.API_SECRET_HOTSPOT,  # testnet keys if using the testnet sandbox
+                'apiKey': config.API_KEY_ZIGGO,  # testnet keys if using the testnet sandbox
+                'secret': config.API_SECRET_ZIGGO,  # testnet keys if using the testnet sandbox
                 'options': {
                     'defaultType': 'swap',
                 },
