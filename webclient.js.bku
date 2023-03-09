@@ -1,0 +1,156 @@
+const websocket = new WebSocket("ws://localhost:8765");
+
+websocket.onopen = () => {
+  console.log("Connected to server");
+
+  // websocket.send("Hello, server!");
+  // websocket.send("Another message");
+};
+let init = true;
+let klines = [];
+let candlestickData = [];
+let ticks = [];
+websocket.onmessage = (event) => {
+  // console.log(`Received message: ${event.data}`);
+  const message = JSON.parse(event.data);
+  // console.log(message.ticks);
+
+  ticks = message.ticks.map((value, index, d) => {
+    // console.log(value.timestamp/1000000000);
+    return {
+      time: Number(value.timestamp / 1000000000),
+      value: Number(value.last * 0.0001),
+    };
+  });
+
+  // Format the data for use with the chart
+  // klines = message.klines[0];
+  // for (time in klines){
+  //     // console.log('current time',time);
+  //     // console.log('kline time',Number(klines[time][0][0]))
+  //     // klines[time].map((value,index,d) => console.log(d[index][0]));
+  //     candlestickData = klines[time].map((value,index,d) => {
+  //         if (klines[time][index][0] == null){
+  //             console.log('timestamp is null',klines[time][index][0]);
+  //             return;
+  //         }
+  //         // else{
+  //         //     console.log('timestamp: ',klines[time][index][0]/1000);
+  //         // };
+  //         return {
+  //             time: klines[time][index][0]*1000, //new Date(time).getTime()/1000,
+  //             open: Number(klines[time][index][2] * 0.0001),
+  //             high: Number(klines[time][index][3] * 0.0001),
+  //             low: Number(klines[time][index][4] * 0.0001),
+  //             close: Number(klines[time][index][5] * 0.0001),
+  //         };
+  //     }).filter(data => data !== null);
+  //     // Sort the candlestickData array by time in ascending order
+  //     candlestickData.sort((a, b) => a.time - b.time);
+  //     // console.log('formattedData',formattedData);
+  // }
+
+  // Format the data for use with the chart
+  klines = message.klines[0];
+  for (time in klines) {
+    const candlestickDataByTime = klines[time].reduce((acc, cur) => {
+      let time = cur[0];
+      const candlestickData = {
+        time: Math.round(time),
+        open: Math.round(cur[2] * 0.0001),
+        high: Math.round(cur[3] * 0.0001),
+        low: Math.round(cur[4] * 0.0001),
+        close: Math.round(cur[5] * 0.0001),
+      };
+
+      if (!acc[time]) {
+        acc[time] = [candlestickData];
+      } else {
+        acc[time].push(candlestickData);
+      }
+
+      return acc;
+    }, {});
+
+    // Sort the keys of the object by time in ascending order
+    const sortedKeys = Object.keys(candlestickDataByTime).sort((a, b) => a - b);
+
+    // Concatenate the candlestickData arrays in the order of the sorted keys
+    candlestickData = sortedKeys.reduce((acc, cur) => {
+      return acc.concat(candlestickDataByTime[cur]);
+    }, []);
+  }
+
+  // const formattedData = data.map(d => ({
+  //     time: d.timestamp,
+  //     open: d.open * 0.0001,
+  //     high: d.high * 0.0001,
+  //     low: d.low * 0.0001,
+  //     close: d.close * 0.0001,
+  // }));
+  // console.log(`Received message formattedData: ${JSON.stringify(formattedData)}`);
+  if (init) {
+    // Add the OHLC data to the Heikin Ashi series
+    console.log(
+      `Init -- Add all ohlcv data: ${JSON.stringify(candlestickData)}`
+    );
+    candlestickSeries.setData(candlestickData);
+    init = false;
+  } else {
+    // Add the OHLC data to the Heikin Ashi series
+    // console.log(`update ohlcv data: ${JSON.stringify(formattedData.pop())}`);
+    // console.log('formattedData.length',formattedData.length)
+    if (candlestickData.length > 0) {
+      let lastKline = candlestickData[candlestickData.length - 1];
+      // console.log(`Update last kline: ${JSON.stringify(lastKline)}`);
+      // console.log(`Update first kline: ${JSON.stringify(firstKline)}`);
+      candlestickSeries.update(lastKline);
+    }
+
+    if (ticks.length > 0) {
+      // set the data for the series
+      lineSeries.setData(ticks);
+    }
+  }
+  // chart.timeScale().fitContent();
+  // // Add some technical indicators to the chart
+  // const sma20 = chart.addLineSeries({
+  //     priceScaleId: 'price',
+  //     color: 'orange',
+  //     lineWidth: 2,
+  // });
+  // sma20.setData(formattedData.map(d => ({ time: d.time, value: d.close })));
+  // sma20.createPriceLine({
+  //     price: 130,
+  //     color: 'red',
+  //     lineWidth: 2,
+  //     axisLabelVisible: false,
+  //     title: 'Resistance',
+  // });
+
+  // const sma50 = chart.addLineSeries({
+  //     priceScaleId: 'price',
+  //     color: 'blue',
+  //     lineWidth: 2,
+  // });
+  // sma50.setData(formattedData.map(d => ({ time: d.time, value: d.close })));
+
+  // const macd = chart.addHistogramSeries({
+  //     priceScaleId: 'volume',
+  //     color: 'purple',
+  //     lineWidth: 2,
+  //     base: 0,
+  //     overlay: true,
+  // });
+  // macd.setData(formattedData.map(d => ({ time: d.time, value: d.close })));
+  // macd.createPriceLine({
+  //     price: 0,
+  //     color: 'gray',
+  //     lineWidth: 2,
+  //     axisLabelVisible: false,
+  // });
+};
+
+websocket.onclose = (event) => {
+  console.log(`Connection closed with code ${event.code}`);
+};

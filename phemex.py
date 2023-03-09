@@ -42,11 +42,13 @@ def getPositionInfo():
         symbol = positions[0]['symbol']
         # print(positions[0])
         position_pnl_pct = 0
+        unrealized_pnl = 0
         if side != 'None':
             unrealized_pnl = (float(positions[0]['markPrice']) - float(positions[0]['avgEntryPrice'])) * float(positions[0]['size'])
             position_value = float(positions[0]['size']) * float(positions[0]['avgEntryPrice'])
+            # print(f'unrealized_pnl: {unrealized_pnl} position_value: {position_value}')
             position_pnl_pct = unrealized_pnl / position_value * 10000
         # print(f"Position {positions[0]['symbol']}: PNL {position_pnl_pct:.2f}%")
-        return [{'entryPrice':entryPrice,'side':side,'amount':amount,'symbol':symbol, 'leverage': leverage, 'unrealized_pnl_perc': position_pnl_pct}]
+        return [{'entryPrice':entryPrice,'side':side,'amount':amount,'symbol':symbol, 'leverage': leverage,'unrealized_pnl':unrealized_pnl, 'unrealized_pnl_perc': position_pnl_pct}]
     except Exception as e:
-        print("request getTradeSellPercentage failed, retrying",e)
+        print("request getPositionInfo failed, retrying",e)
