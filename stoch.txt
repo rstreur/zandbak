@@ -1,0 +1,39 @@
+stoch rsi %k blue %d yellow line
+
+if %k and %d greater 80% then remove stoploss
+
+if %k greater %d and d% between 50% and 80% then add stoploss
+
+if %k greater %d and d% between 50% and 80% then add stoploss
+
+if %k smaller d% and d% between 20% and 50% then add stoploss
+
+if %k greater d% and d% between 20% and 50% then remove stoploss
+
+if %k and d% between 0% and 20% then add stoploss
+
+if %k below 80% and %d is above 80% then
+
+if %k below 20% and %d between 20% and 50% then remove stoploss
+
+if %k below 20% and %d between 20% and 50% then remove stoploss
+
+if %k above 50% and %d between 20% and 50% then remove stoploss
+
+if %k above 80% and %d between 50% and 80% then remove stoploss
+
+if %k below 80% and %d between 80% and 100% then remove stoploss
+
+if %k below 50% and %d between 50% and 80% then remove stoploss
+
+if %k smaller d% and %k below 50% and %d between 50% and 80% then remove stoploss
+
+if %k above 80% and %d above 80% then add stoploss
+
+if %k smaller d% and %k and %d below 20% then add stoploss
+
+if %k greater d% and %k and %d below 20% then remove stoploss
+
+if %k greater d% and %k and d% between 50% and 80% then add stoploss
+
+if %k smaller d% and %k and d% between 50% and 80% then add stoploss

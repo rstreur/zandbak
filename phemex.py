@@ -35,20 +35,26 @@ def getPositionInfo():
         balance = exchange.fetch_balance(params=params)
         positions = balance.get('info').get('data').get('positions')
         # print(positions)
-        leverage = round(float(positions[0]['leverage']),0)
-        amount = float(positions[0]['size'])
-        entryPrice = round(float(positions[0]['avgEntryPrice']),0)
+        leverage = 0
+        amount = 0
+        entryPrice = 0
+        liquidationPrice = 0
         side = positions[0]['side']
         symbol = positions[0]['symbol']
+
         # print(positions[0])
         position_pnl_pct = 0
         unrealized_pnl = 0
         if side != 'None':
+            leverage = round(float(positions[0]['leverage']),0)
+            amount = float(positions[0]['size'])
+            entryPrice = round(float(positions[0]['avgEntryPrice']),0)
+            liquidationPrice = round(float(positions[0]['liquidationPriceEp']),0)            
             unrealized_pnl = (float(positions[0]['markPrice']) - float(positions[0]['avgEntryPrice'])) * float(positions[0]['size'])
             position_value = float(positions[0]['size']) * float(positions[0]['avgEntryPrice'])
             # print(f'unrealized_pnl: {unrealized_pnl} position_value: {position_value}')
             position_pnl_pct = unrealized_pnl / position_value * 10000
         # print(f"Position {positions[0]['symbol']}: PNL {position_pnl_pct:.2f}%")
-        return [{'entryPrice':entryPrice,'side':side,'amount':amount,'symbol':symbol, 'leverage': leverage,'unrealized_pnl':unrealized_pnl, 'unrealized_pnl_perc': position_pnl_pct}]
+        return [{'entryPrice':entryPrice,'side':side,'amount':amount,'symbol':symbol, 'leverage': leverage,'unrealized_pnl':unrealized_pnl, 'unrealized_pnl_perc': position_pnl_pct,'liquidationPrice':int(liquidationPrice)}]
     except Exception as e:
         print("request getPositionInfo failed, retrying",e)
