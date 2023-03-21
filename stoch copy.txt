@@ -9,9 +9,9 @@ if %k greater d% and if %k 50% - 80% and %d is 80% - 100% then add stoploss
 
 if %k greater %d and if %k 50% - 80% and %d is 20% - 50% then remove stoploss
 
-if %k greater %d and if %k 20% - 50% and %d is 0% - 20% then remove stoploss
-
 if %k greater %d and if %k 20% - 50% and %d is 20% - 50% then add stoploss
+
+if %k greater %d and if %k 20% - 50% and %d is 0% - 20% then remove stoploss
 
 if %k greater %d and if %k 0% - 20% and %d is 0% - 20% then add stoploss
 
