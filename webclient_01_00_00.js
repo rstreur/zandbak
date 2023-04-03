@@ -286,17 +286,6 @@ const printPatterns = (data) => {
   }
 };
 
-const fibonacciLevels = [
-  { value: 0, color: "gray" },
-  { value: 0.238, color: "red" },
-  { value: 0.5, color: "purple" },
-  { value: 0.618, color: "white" },
-  { value: 0.65, color: "gold" },
-  { value: 0.708, color: "blue" },
-  { value: 1, color: "gray" },
-  { value: 1.618, color: "blue" },
-];
-
 const darkTheme = {
   chart: {
     layout: {
@@ -374,11 +363,22 @@ chart.applyOptions({
   fullscreen: true,
   priceScale: "shared",
   timeScale: {
-    ticksVisible:true,
+    ticksVisible: true,
     timeVisible: true,
     secondsVisible: true,
   },
 });
+// create a timer function to update the countdown
+function updateCountdown(series) {
+  const currentBar = series.bars().last();
+  const timeToClose = currentBar
+    ? currentBar.time + series.options().interval * 1000 - Date.now()
+    : 0;
+  const secondsToClose = Math.round(timeToClose / 1000);
+
+  // update the countdown text
+  series.setLeftPriceFormatter(() => secondsToClose.toString());
+}
 
 chart.applyOptions(darkTheme.chart);
 
@@ -389,22 +389,20 @@ const slopeSeries = chart.addLineSeries({
 
 slopeSeries.applyOptions(darkTheme.series);
 
-
 let prices = [];
 let slopes = [];
 let lastThreeHighs = [0, 0, 0];
 
-function addHighLabelsToChart(highs) {
-
+function addHighLabelsToChart(highs, label = "") {
   let markerData = highs.map((high, index) => ({
     time: high.time,
     position: "aboveBar",
     color: "white",
-    text: index + 1 + " - " + high.value,
+    text: label + " - " + high.value,
   }));
-  console.log('addHighLabelsToChart', markerData);
+  console.log("addHighLabelsToChart", markerData);
   return markerData;
-};
+}
 
 const candlesSeries = chart.addCandlestickSeries({
   upColor: "#26a69a",
@@ -415,26 +413,53 @@ const candlesSeries = chart.addCandlestickSeries({
   wickColor: "#26a69a",
 });
 
+const fibonacciLevels = [
+  { value: 0, color: "gray" },
+  { value: 0.236, color: "red" },
+  { value: 0.5, color: "purple" },
+  { value: 0.618, color: "white" },
+  { value: 0.65, color: "gold" },
+  { value: 0.786, color: "#64b5f6" }, // light blue
+  { value: 1, color: "gray" },
+  { value: 1.618, color: "#2962ff" }, // darkk blue
+];
+
 const fibonacciSeries = fibonacciLevels.map((level) => {
   return chart.addLineSeries({
     color: level.color,
-    lineWidth: 1,
-    priceScaleId: "left",
+    lineWidth: 2,
+    priceScaleId: "right",
   });
 });
 
-function updateFibLevels(candle) {
-  const range = {
-    low: candle.low,
-    high: candle.high,
-  };
+const fibonacciSeriesReversed = fibonacciLevels.map((level) => {
+  return chart.addLineSeries({
+    color: level.color,
+    lineWidth: 2,
+    priceScaleId: "right",
+  });
+});
 
+function updateFibLevels(maxHigh, minLow, lastTime, direction = 1) {
+  const range = {
+    low: minLow.value,
+    high: maxHigh.value,
+  };
+  // console.log('range',range,Date.now() / 1000);
   fibonacciLevels.forEach((level, index) => {
-    const value = range.low + (range.high - range.low) * level.value;
-    fibonacciSeries[index].setData([
-      { time: candle.time, value },
-      { time: candle.time, value },
-    ]);
+    const value =
+      range.low + (range.high - range.low) * level.value * direction;
+    if (direction == 1) {
+      fibonacciSeries[index].setData([
+        { time: lastTime, value },
+        { time: lastTime, value },
+      ]);
+    } else {
+      fibonacciSeriesReversed[index].setData([
+        { time: lastTime, value },
+        { time: lastTime, value },
+      ]);
+    }
   });
 }
 const websocket = new WebSocket("ws://localhost:8764");
@@ -451,48 +476,29 @@ function getHighsFromKlines(priceData, numHighs = 4) {
       break;
     }
     // if (candle.high > (highs.length > 0 ? highs[highs.length - 1].price : 0)) {
-    if (priceData[i].value > (highs.length > 0 ? highs[highs.length - 1].value : 0)) {
+    if (
+      priceData[i].value >
+      (highs.length > 0 ? highs[highs.length - 1].value : 0)
+    ) {
       highs.push({ time: priceData[i].time, value: priceData[i].value });
     }
   }
   return highs; //.reverse();
 }
-function updateExtendedLine(lastThreeHighs, extendedLineSeries) {
+function updateExtendedLine(lastThreeHighs, extendedLineSeries, label = "") {
   // lastThreeHighs = getHighsFromKlines(priceData);
   if (lastThreeHighs.length > 0) {
-    let markers = addHighLabelsToChart(lastThreeHighs);
-    // console.log("lastThreeHighs", lastThreeHighs);
-    // console.log("priceData", priceData);
-
-    // const prices = priceData.map((price) => price.value);
-    // console.log("prices", prices);
-
-    // const priceData = prices.map((price, index) => ({
-    //   time: priceData[index].time,
-    //   value: price * 0.0001,
-    // }));
-
-    // const latestPrice = prices[prices.length - 1].value;
-    // const latestTime = priceData[priceData.length - 1].time;
-
-    // const slopes = [0, 0, (prices[2] - Math.max(...prices.slice(0, 3))) / 3];
-    // const newFourthHigh = lastThreeHighs.pop();
+    const points = lastThreeHighs.map((point) => point[0]);
+    let markers = addHighLabelsToChart(points, label);
     const lastThreeHighsPrices = lastThreeHighs.map((high) => high.value);
     const lastThreeHighsTimes = lastThreeHighs.map((high) => high.time);
     const latestTime = Date.now() / 1000;
+    // latestTime = latestTime + 2 * 60;
 
-    // const newFourthHigh =
-    //   lastThreeHighsPrices[2] +
-    //   slopes.reduce((total, slope, index) => {
-    //     const n = index + 4;
-    //     return total + slope * (n - 1);
-    //   }, 0);
-    console.log(
-      "lasthigh",
-      lastThreeHighsPrices[lastThreeHighsPrices.length - 1]
-    );
-    // console.log("newFourthHigh", newFourthHigh);
-    // console.log("lastThreeHighs", lastThreeHighs);
+    // console.log(
+    //   "lasthigh",
+    //   lastThreeHighsPrices[lastThreeHighsPrices.length - 1]
+    // );
 
     const options = {
       priceRange: {
@@ -510,138 +516,46 @@ function updateExtendedLine(lastThreeHighs, extendedLineSeries) {
       priceScale: {
         mode: LightweightCharts.PriceScaleMode.Normal,
       },
-      color: "red",
-      lineWidth: 2,
       lineStyle: LightweightCharts.LineStyle.Dotted,
     };
-    let points = [
-      lastThreeHighs[0],
-      lastThreeHighs[1],
-      lastThreeHighs[2],
-      lastThreeHighs[3],
-    ];
-    // const newPoints = [
-    //   { time: latestTime - 2 * 60, value: lastThreeHighsPrices[0] },
-    //   { time: latestTime - 1 * 60, value: lastThreeHighsPrices[1] },
-    //   { time: latestTime, value: lastThreeHighsPrices[2] },
-    //   { time: latestTime, value: newFourthHigh.value },
+    // let points = [
+    //   lastThreeHighs[0],
+    //   lastThreeHighs[1],
+    //   lastThreeHighs[2],
+    //   lastThreeHighs[3],
     // ];
     console.log("points", points);
     console.log("lastThreeHighs", lastThreeHighs);
     extendedLineSeries.setData(points);
     extendedLineSeries.applyOptions(options);
-    extendedLineSeries.setMarkers(markers)
+    extendedLineSeries.setMarkers(markers);
     return extendedLineSeries;
   }
 }
-// function updateExtendedLine(priceData, extendedLineSeries) {
-//   lastThreeHighs = getHighsFromKlines(priceData);
-//   if (lastThreeHighs.length > 0) {
-//     // console.log("lastThreeHighs", lastThreeHighs);
-//     // console.log("priceData", priceData);
 
-//     const prices = priceData.map((price) => price.value);
-//     // console.log("prices", prices);
-
-//     // const priceData = prices.map((price, index) => ({
-//     //   time: priceData[index].time,
-//     //   value: price * 0.0001,
-//     // }));
-
-//     const latestPrice = prices[prices.length - 1].value;
-//     const latestTime = priceData[priceData.length - 1].time;
-
-//     const slopes = [0, 0, (prices[2] - Math.max(...prices.slice(0, 3))) / 3];
-//     const newFourthHigh = lastThreeHighs.pop();
-//     const lastThreeHighsPrices = lastThreeHighs.map((high) => high.value);
-//     const lastThreeHighsTimes = lastThreeHighs.map((high) => high.time);
-
-//     // const newFourthHigh =
-//     //   lastThreeHighsPrices[2] +
-//     //   slopes.reduce((total, slope, index) => {
-//     //     const n = index + 4;
-//     //     return total + slope * (n - 1);
-//     //   }, 0);
-//     console.log(
-//       "lasthigh",
-//       lastThreeHighsPrices[lastThreeHighsPrices.length - 1]
-//     );
-//     console.log("newFourthHigh", newFourthHigh);
-//     console.log("lastThreeHighs", lastThreeHighs);
-
-//     addHighLabelsToChart(lastThreeHighs);
-
-//     const options = {
-//       priceRange: {
-//         from: Math.min(...lastThreeHighsPrices) - 10,
-//         to: Math.max(...lastThreeHighsPrices, newFourthHigh) + 10,
-//       },
-//       timeRange: {
-//         from: lastThreeHighsTimes[0] - 2 * 60,
-//         to: latestTime + 2 * 60,
-//       },
-//       visibleRange: {
-//         from: lastThreeHighsTimes[0] - 2 * 60,
-//         to: latestTime + 2 * 60,
-//       },
-//       priceScale: {
-//         mode: LightweightCharts.PriceScaleMode.Normal,
-//       },
-//       color: "red",
-//       lineWidth: 2,
-//       lineStyle: LightweightCharts.LineStyle.Dotted,
-//     };
-
-//     const newPoints = [
-//       { time: latestTime - 2 * 60, value: lastThreeHighsPrices[0] },
-//       { time: latestTime - 1 * 60, value: lastThreeHighsPrices[1] },
-//       { time: latestTime, value: lastThreeHighsPrices[2] },
-//       { time: latestTime, value: newFourthHigh },
-//     ];
-//     // console.log("newPoints", newPoints);
-//     extendedLineSeries.setData(newPoints);
-//     extendedLineSeries.applyOptions(options);
-//     return extendedLineSeries;
-//   }
-// }
-function createExtendedLine(lastThreeHighs) {
-  const points = lastThreeHighs.map((point)=> point[0]);
-  console.log('lastThreeHighs', lastThreeHighs);
-  let markers = addHighLabelsToChart(points);
+function createExtendedLine(lastThreeHighs, label = "", color = "yellow") {
+  const points = lastThreeHighs.map((point) => point[0]);
+  console.log("lastThreeHighs", lastThreeHighs);
+  let markers = addHighLabelsToChart(points, label);
   extendedLineSeries = chart.addLineSeries({
-    color: "red",
+    color: color,
     lineWidth: 3,
   });
   extendedLineSeries.applyOptions(darkTheme.series);
 
   // const newFourthHigh = lastThreeHighs.pop();
-  const lastThreeHighsPrices = lastThreeHighs.map((high) => high.value);
-  const lastThreeHighsTimes = lastThreeHighs.map((high) => high.time);
-  const latestTime = Date.now() / 1000;
-  // console.log('lastThreeHighsPrices', lastThreeHighsPrices);
-  // const fourthHigh =
-  //   lastThreeHighs[2] +
-  //   slopes.reduce((total, slope, index) => {
-  //     const n = index + 4;
-  //     return total + slope * (n - 1);
-  //   }, 0);
+  // const lastThreeHighsPrices = lastThreeHighs.map((high) => high.value);
+  // const lastThreeHighsTimes = lastThreeHighs.map((high) => high.time);
+  // const latestTime = Date.now() / 1000;
 
-  // const points = [
-  //   lastThreeHighs[0],
-  //   lastThreeHighs[1],
-  //   lastThreeHighs[2],
-  //   lastThreeHighs[3],
-  // ];
-  
-  
   console.log("points", points);
 
-  const x1 = points[0].time - 2 * 60,
-    x2 = points[points.length - 1].time + 2 * 60;
-  const y1 = Math.min(...points.map((p) => p.value)) - 10,
-    y2 = Math.max(...points.map((p) => p.value)) + 10;
-  const slope = (y2 - y1) / (x2 - x1);
-  const intercept = y1 - slope * x1;
+  // const x1 = points[0].time - 2 * 60,
+  //   x2 = points[points.length - 1].time + 2 * 60;
+  // const y1 = Math.min(...points.map((p) => p.value)) - 10,
+  //   y2 = Math.max(...points.map((p) => p.value)) + 10;
+  // const slope = (y2 - y1) / (x2 - x1);
+  // const intercept = y1 - slope * x1;
 
   const options = {
     priceRange: {
@@ -659,7 +573,7 @@ function createExtendedLine(lastThreeHighs) {
     priceScale: {
       mode: LightweightCharts.PriceScaleMode.Normal,
     },
-    color: "red",
+    color: color,
     lineWidth: 1,
     lineStyle: LightweightCharts.LineStyle.Dotted,
   };
@@ -669,67 +583,6 @@ function createExtendedLine(lastThreeHighs) {
   extendedLineSeries.setMarkers(markers);
   return extendedLineSeries;
 }
-
-// function createExtendedLine(priceData) {
-//   const extendedLineSeries = chart.addLineSeries({
-//     color: "red",
-//     lineWidth: 3,
-//   });
-//   extendedLineSeries.applyOptions(darkTheme.series);
-
-//   let prices = priceData.map(price => price.value);
-
-//   const slopes = [0, 0, (prices[2] - Math.max(...prices.slice(0, 3))) / 3];
-
-//   lastThreeHighs = prices.slice(-3);
-//   const fourthHigh =
-//     lastThreeHighs[2] +
-//     slopes.reduce((total, slope, index) => {
-//       const n = index + 4;
-//       return total + slope * (n - 1);
-//     }, 0);
-
-//   const points = [
-//     { time: priceData[priceData.length - 3].time, value: lastThreeHighs[0] },
-//     { time: priceData[priceData.length - 2].time, value: lastThreeHighs[1] },
-//     { time: priceData[priceData.length - 1].time, value: lastThreeHighs[2] },
-//     { time: priceData[priceData.length - 1].time, value: fourthHigh },
-//   ];
-
-//   const x1 = points[0].time - 2 * 60,
-//     x2 = points[points.length - 1].time + 2 * 60;
-//   const y1 = Math.min(...points.map((p) => p.value)) - 10,
-//     y2 = Math.max(...points.map((p) => p.value)) + 10;
-//   const slope = (y2 - y1) / (x2 - x1);
-//   const intercept = y1 - slope * x1;
-
-//   const options = {
-//     priceRange: {
-//       from: Math.min(...points.map((p) => p.value)) - 10,
-//       to: Math.max(...points.map((p) => p.value)) + 10,
-//     },
-//     timeRange: {
-//       from: points[0].time - 2 * 60,
-//       to: points[points.length - 1].time + 2 * 60,
-//     },
-//     visibleRange: {
-//       from: points[0].time - 2 * 60,
-//       to: points[points.length - 1].time + 2 * 60,
-//     },
-//     priceScale: {
-//       mode: LightweightCharts.PriceScaleMode.Normal,
-//     },
-//     color: "red",
-//     lineWidth: 1,
-//     lineStyle: LightweightCharts.LineStyle.Dotted,
-//   };
-
-//   // console.log("points", points);
-
-//   extendedLineSeries.setData(points);
-//   extendedLineSeries.applyOptions(options);
-//   return extendedLineSeries;
-// }
 
 websocket.onopen = () => {
   console.log("Connected to server");
@@ -770,9 +623,11 @@ function groupKlinesByInterval(klines, interval) {
 
 let lastCandle = null;
 let hhData = null;
+let hlData = null;
 let lhData = null;
 let llData = null;
 let hhLineSeries = null;
+let hlLineSeries = null;
 let lhLineSeries = null;
 let llLineSeries = null;
 let priceLineSeries = null;
@@ -787,75 +642,151 @@ websocket.onmessage = (event) => {
     // console.log("klines grouped", klines);
     if (klines.length > 0) {
       let candles = klines
-      .map((value) => ({
-        time: value.time,
-        open: value.open / 10000,
-        high: value.high / 10000,
-        low: value.low / 10000,
-        close: value.close / 10000,
-      }))
-      .sort((a, b) => a.time - b.time)
-      .filter((candle, index, array) => index === 0 || candle.time !== array[index - 1].time);
-    
+        .map((value) => ({
+          time: value.time,
+          open: value.open / 10000,
+          high: value.high / 10000,
+          low: value.low / 10000,
+          close: value.close / 10000,
+        }))
+        .sort((a, b) => a.time - b.time)
+        .filter(
+          (candle, index, array) =>
+            index === 0 || candle.time !== array[index - 1].time
+        );
+
+      const lastCandles = candles.slice(-380);
+      const lastTime = lastCandles[lastCandles.length - 1].time;
+      console.log("lastCandles", lastCandles);
+      console.log("lastTime", lastTime);
+
+      const maxHigh = lastCandles.reduce(
+        (acc, candle) => {
+          if (candle.high > acc.value) {
+            acc.value = candle.high;
+            acc.time = candle.time;
+          }
+          return acc;
+        },
+        { value: -Infinity, time: null }
+      );
+
+      const minLow = lastCandles.reduce(
+        (acc, candle) => {
+          if (candle.low < acc.value) {
+            acc.value = candle.low;
+            acc.time = candle.time;
+          }
+          return acc;
+        },
+        { value: Infinity, time: null }
+      );
+
+      console.log("Max high: ", maxHigh);
+      console.log("Min low: ", minLow);
+
+      updateFibLevels(maxHigh, minLow, lastTime);
+      updateFibLevels(maxHigh, minLow, lastTime, -1);
+
       // console.log('candles',candles);
       // sleep(200000);
       let priceData = candles.map((candle) => ({
         time: candle.time,
         value: candle.close,
       }));
-      if (data.ll) {
+
+      if (data.positions) {
+        const latestTime = Math.floor(Date.now() / 1000);
+        data.positions.map((position) => {
+          console.log("position", position, latestTime);
+          const positionSeries = chart.addLineSeries({
+            color: position.type === "long" ? "#00ff00" : "#ff0000",
+            lineWidth: 2,
+            lineType: LightweightCharts.LineType.Horizontal,
+            title: position.type === "long" ? "Long" : "Short",
+            data: [
+              { time: latestTime, value: position.entryPrice },
+              { time: latestTime, value: position.stopLoss },
+              { time: latestTime, value: position.takeProfit },
+            ],
+          });
+          if (position.type === "long") {
+            console.log('position.type',position.type);
+            positionSeries.applyOptions({
+              color: "#00ff00",
+              fillStyle: {
+                color: "rgba(0, 255, 0, 0.2)",
+              },
+            });
+          } else if (position.type === "short") {
+            positionSeries.applyOptions({
+              color: "#ff0000",
+              fillStyle: {
+                color: "rgba(255, 0, 0, 0.2)",
+              },
+            });
+          }
+        });
+      }
+
+      if (data.ll != null) {
         // console.log('Highs', data.hh);
         // hhData = data.hh.slice(-1);
         llData = data.ll;
-        llData = llData.map((ll) =>
-          (ll)
-        );
-        console.log('Lower Lows', llData);
+        llData = llData.map((ll) => ll);
+        console.log("Lower Lows", llData);
       }
-      if (data.lh) {
+      if (data.lh != null) {
         // console.log('Highs', data.hh);
         // hhData = data.hh.slice(-1);
         lhData = data.lh;
-        lhData = lhData.map((lh) =>
-          (lh)
-        );
-        console.log('Lower Highs', lhData);
+        lhData = lhData.map((lh) => lh);
+        console.log("Lower Highs", lhData);
       }
-      if (data.hh) {
+      if (data.hh != null) {
         // console.log('Highs', data.hh);
         // hhData = data.hh.slice(-1);
         hhData = data.hh;
-        hhData = hhData.map((high) =>
-          (high)
-        );
-        console.log('Higher Highs', hhData);
+        hhData = hhData.map((high) => high);
+        console.log("Higher Highs", hhData);
+      }
+      if (data.hl != null) {
+        // console.log('Highs', data.hh);
+        // hhData = data.hh.slice(-1);
+        hlData = data.hl;
+        hlData = hlData.map((high) => high);
+        console.log("Higher Lows", hlData);
       }
       if (data.status == "new") {
         priceLineSeries = chart.addLineSeries({
-          color: "green",
+          color: "cyan",
           lineWidth: 2,
         });
-        console.log('priceData', priceData);
+        console.log("priceData", priceData);
         priceLineSeries.applyOptions(darkTheme.series);
         priceLineSeries.setData(priceData);
-        // priceLine = createExtendedLine(priceData, priceLine);
-        // console.log('priceData', priceData);
-        // console.log('hhData', hhData);
-        if (llData) {
-          llLineSeries = createExtendedLine(llData);
+        // updateCountdown(priceLineSeries);
+
+        if (llData.length > 0) {
+          label = "ll";
+          color = "yellow";
+          llLineSeries = createExtendedLine(llData, label, color);
         }
-        if (lhData) {
-          lhLineSeries = createExtendedLine(lhData);
+        if (lhData.length > 0) {
+          label = "lh";
+          color = "#ff0000"; // red
+          lhLineSeries = createExtendedLine(lhData, label, color);
         }
-        if (hhData) {
-          hhLineSeries = createExtendedLine(hhData);
+        if (hhData.length > 0) {
+          label = "hh";
+          color = "#AAFF00"; // green
+          hhLineSeries = createExtendedLine(hhData, label, color);
         }
-        // sleep(500000);
-        candles.map((value) => {
-          updateFibLevels(value);
-        });
-        // createExtendedLine(candles);
-        // printPatterns(candles);
+        if (hlData.length > 0) {
+          label = "hl";
+          color = "white";
+          hlLineSeries = createExtendedLine(hlData, label, color);
+        }
         websocket.send(JSON.stringify({ status: "active" }));
       } else {
         // let prices = priceData.map((price) => price.value);
@@ -863,49 +794,50 @@ websocket.onmessage = (event) => {
         if (priceData.length > 0) {
           let lastCandle = priceData.pop();
           console.log("Last candle", lastCandle);
-          if (lastCandle.time != null){
+          if (lastCandle.time != null) {
             priceLineSeries.update(lastCandle);
           }
-          
-          // sleep(1000);
+        }
+        printPatterns(candles);
+        if (hhData.length > 0) {
+          label = "hh";
+          if (hhLineSeries == null) {
+            hhLineSeries = createExtendedLine(hhData, label);
+          } else {
+            console.log(hhLineSeries);
+            hhLineSeries = updateExtendedLine(hhData, hhLineSeries, label);
+          }
         }
 
-        printPatterns(candles);
+        if (hlData.length > 0) {
+          label = "hl";
+          if (hlLineSeries == null) {
+            hlLineSeries = createExtendedLine(hlData, label);
+          } else {
+            console.log(hlLineSeries);
+            hlLineSeries = updateExtendedLine(hlData, hlLineSeries, label);
+          }
+        }
 
-        // if (priceLine == null) {
-        //   priceLine = createExtendedLine(priceData, priceLine);
-        // } else {
-        //   priceLine = updateExtendedLine(priceData, priceLine);
-        // }
+        if (lhData.length > 0) {
+          label = "lh";
+          if (lhLineSeries == null) {
+            lhLineSeries = createExtendedLine(lhData, label);
+          } else {
+            console.log(lhLineSeries);
+            lhLineSeries = updateExtendedLine(lhData, lhLineSeries, label);
+          }
+        }
 
-        // if (hhData) {
-        //   if (hhLineSeries == null) {
-        //     hhLineSeries = createExtendedLine(hhData);
-        //   } else {
-        //     console.log(hhLineSeries);
-        //     hhLineSeries = updateExtendedLine(hhData, hhLineSeries);
-        //   }
-        // }
-
-        // if (lhData) {
-        //   if (lhLineSeries == null) {
-        //     lhLineSeries = createExtendedLine(lhData);
-        //   } else {
-        //     console.log(lhLineSeries);
-        //     lhLineSeries = updateExtendedLine(lhData, lhLineSeries);
-        //   }
-        // }
-
-        // if (llData) {
-        //   if (llLineSeries == null) {
-        //     llLineSeries = createExtendedLine(llData);
-        //   } else {
-        //     console.log(llLineSeries);
-        //     llLineSeries = updateExtendedLine(llData, llLineSeries);
-        //   }
-        // }
-        // updateFibLevels(candles[candles.length - 1]);
-        //
+        if (llData.length > 0) {
+          label = "ll";
+          if (llLineSeries == null) {
+            llLineSeries = createExtendedLine(llData, label);
+          } else {
+            console.log(llLineSeries);
+            llLineSeries = updateExtendedLine(llData, llLineSeries, label);
+          }
+        }
       }
     }
   }
